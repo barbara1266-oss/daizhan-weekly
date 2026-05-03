@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大展分會｜週報填寫系統</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; background: #F1EFE8; padding: 1rem; }
+h1.site-title { text-align: center; font-size: 20px; font-weight: 600; color: #4F46E5; margin-bottom: 1.5rem; }
+.form-wrap { max-width: 100%; margin: 0 auto 2.5rem; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,0.08); }
+.top-bar { background: #4F46E5; padding: 1rem 1.25rem; }
+.top-bar h2 { font-size: 18px; font-weight: 600; color: #fff; }
+.top-bar p { font-size: 12px; color: #E0DEFF; margin-top: 3px; line-height: 1.7; }
+.body { padding: 1rem 1rem 1.25rem; }
+
+/* ── 狀態列 ── */
+.status-bar {
+  text-align: center; font-size: 13px; padding: 8px 12px;
+  margin-bottom: 10px; border-radius: 8px;
+  background: #F1EFE8; color: #666;
+  transition: background 0.3s, color 0.3s;
+}
+.status-bar.loaded { background: #E1F5EE; color: #0F6E56; }
+.status-bar.warn { background: #FEF3C7; color: #92400E; }
+
+/* ── 桌面版表格 ── */
+.table-wrap { border: 1px solid #E5E3DC; border-radius: 10px; overflow: hidden; margin-bottom: 12px; width: 100%; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+thead tr { background: #F1EFE8; }
+th { padding: 10px 4px; font-size: 11px; font-weight: 600; color: #888780; text-align: center; border-bottom: 1px solid #E5E3DC; line-height: 1.4; }
+th.nm { text-align: left; padding-left: 10px; width: 13%; }
+th.att-h { width: 13%; }
+th.num-h { width: 7%; }
+th.score-h { width: 8%; }
+td { padding: 9px 3px; text-align: center; border-bottom: 1px solid #F1EFE8; vertical-align: middle; }
+td.nm { text-align: left; padding-left: 10px; font-weight: 600; font-size: 14px; color: #2C2C2A; }
+tr:last-child td { border-bottom: none; }
+tr:nth-child(even) { background: #FAFAF8; }
+tr.filled { background: #E1F5EE !important; }
+
+/* ── select & input：桌面版 ── */
+select.att {
+  font-size: 13px; padding: 6px 4px;
+  border: 1px solid #D3D1C7; border-radius: 6px;
+  background: #fff; color: #2C2C2A; width: 100%;
+  min-height: 36px; cursor: pointer;
+}
+input.num {
+  width: 100%; text-align: center;
+  padding: 6px 2px; font-size: 14px;
+  border: 1px solid #D3D1C7; border-radius: 6px;
+  background: #fff; color: #2C2C2A;
+  min-height: 36px;
+}
+input.num:focus, select.att:focus { outline: none; border-color: #7F77DD; box-shadow: 0 0 0 2px rgba(127,119,221,0.2); }
+
+.score { font-weight: 700; font-size: 14px; color: #4F46E5; }
+.total-row td { background: #EEF2FF !important; border-top: 2px solid #C7D2FE; font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.tag { font-size: 12px; color: #888780; background: #F1EFE8; padding: 4px 10px; border-radius: 20px; }
+.tag.bonus { background: #FAEEDA; color: #854F0B; }
+
+.submit-btn {
+  width: 100%; padding: 16px;
+  font-size: 17px; font-weight: 700;
+  background: #4F46E5; color: #fff;
+  border: none; border-radius: 12px;
+  cursor: pointer; letter-spacing: 0.5px;
+  min-height: 52px;
+  transition: background 0.15s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.submit-btn:active { background: #3C3489; transform: scale(0.98); }
+.submit-btn:hover { background: #3C3489; }
+.submit-btn:disabled { background: #888780; cursor: not-allowed; transform: none; }
+
+.toast {
+  display: none; position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%); color: #fff; font-size: 14px;
+  padding: 14px 28px; border-radius: 20px; z-index: 9999;
+  text-align: center; line-height: 1.7; max-width: 90%;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+}
+.toast.success { background: #0F6E56; display: block; }
+.toast.error { background: #A32D2D; display: block; }
+.toast.info { background: #4F46E5; display: block; }
+
+/* ── 手機版 (< 640px) ── */
+@media (max-width: 639px) {
+  body { padding: 0.75rem; }
+  h1.site-title { font-size: 18px; }
+  .top-bar h2 { font-size: 16px; }
+
+  .table-wrap { display: none; }
+  .card-list { margin-bottom: 12px; }
+
+  .member-card {
+    border: 1px solid #E5E3DC;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .member-card.filled { border-color: #6EE7B7; background: #F0FBF6; }
+
+  .card-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 14px;
+    background: #F8F7F2;
+    border-bottom: 1px solid #E5E3DC;
+    flex-wrap: wrap;
+  }
+  .card-name {
+    font-weight: 700; font-size: 16px; color: #2C2C2A;
+    flex: 1; min-width: 80px;
+  }
+  .card-header select.att {
+    font-size: 14px; padding: 8px 10px;
+    border: 1.5px solid #D3D1C7; border-radius: 8px;
+    background: #fff; color: #2C2C2A;
+    min-height: 42px; min-width: 90px; cursor: pointer;
+  }
+  .card-score-badge {
+    font-weight: 800; font-size: 18px; color: #4F46E5;
+    background: #EEF2FF; padding: 4px 12px;
+    border-radius: 20px; white-space: nowrap;
+  }
+
+  .card-body {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    padding: 12px 14px;
+  }
+  .card-field { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .card-field label { font-size: 10px; color: #888780; font-weight: 600; text-align: center; line-height: 1.3; }
+  .card-field input.num {
+    width: 100%; min-width: 0;
+    text-align: center; font-size: 16px; font-weight: 600;
+    padding: 10px 4px;
+    border: 1.5px solid #D3D1C7; border-radius: 8px;
+    background: #fff; color: #2C2C2A;
+    min-height: 44px;
+    -webkit-appearance: none;
+  }
+  .card-field input.num:focus {
+    border-color: #7F77DD;
+    box-shadow: 0 0 0 3px rgba(127,119,221,0.18);
+    outline: none;
+  }
+
+  .total-card {
+    border: 2px solid #C7D2FE;
+    border-radius: 12px; background: #EEF2FF;
+    padding: 12px 14px; margin-bottom: 12px;
+  }
+  .total-card-title { font-size: 13px; font-weight: 700; color: #4F46E5; margin-bottom: 8px; }
+  .total-card-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .total-card-field { text-align: center; }
+  .total-card-field span { font-size: 10px; color: #888780; display: block; }
+  .total-card-field strong { font-size: 14px; color: #2C2C2A; }
+  .total-card-grandtotal { margin-top: 10px; font-size: 18px; font-weight: 800; color: #4F46E5; text-align: center; }
+
+  .submit-btn { font-size: 18px; padding: 18px; min-height: 58px; border-radius: 14px; }
+}
+</style>
+</head>
+<body>
+<h1 class="site-title">大展分會｜週報填寫系統</h1>
+<div id="root"></div>
+<div class="toast" id="toast"></div>
+<!-- 隱藏 iframe，用於 POST 送出不被 CORS 擋 -->
+<iframe name="hidden-iframe" id="hidden-iframe" style="display:none"></iframe>
+
+<script>
+// ══════════════════════════════════════════
+//  ★ 設定區：只需改這兩行
+// ══════════════════════════════════════════
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbyqDNDMdToOCU5BZSL3my9zeh1hyaGQpeOFfCf99yArkX2dTr8U-oQD_m8wMH4xYkpg9w/exec';
+var STORAGE_KEY = 'daZhan_weeklyReport_v7';
+// ══════════════════════════════════════════
+
+var groups = [
+  { name:"第1組 基礎工程組", leader:"陳廣豪", members:["陳廣豪(組長)","世豪","韋旱","聖弘","志明","乙仙"] },
+  { name:"第2組 裝修軟裝組", leader:"周宏南", members:["周宏南(組長)","文藝","宜圃","孫靜宜","張忠豪","昀宣"] },
+  { name:"第3組 危老都更組", leader:"連雀伶", members:["連雀伶(組長)","耀元","吳文易","吳東欣","楊智凱","陳宥榛","張逸群"] },
+  { name:"第4組 壽險不動產組", leader:"林聖嵐", members:["林聖嵐(組長)","國龍","金鈴","紀昀","乃慈","子靚","瑞慧"] },
+  { name:"第5組 行銷品牌組", leader:"瑩潔", members:["瑩潔(組長)","美鳳","伯超","忠彬","艾薇","啟宏","陳俞甄"] },
+  { name:"第6組 餐飲美食生產", leader:"李薏萱", members:["李薏萱(組長)","國鼎","曉萍","韋成","剛民","富貴"] },
+  { name:"第7組 企業服務組", leader:"林俊宇", members:["林俊宇(組長)","濟棠","偉玉","奕賢","慧翎"] },
+  { name:"第8組 健康美容組", leader:"邱從甯", members:["邱從甯(組長)","立杰","周延","葉禎","楚馨","淑英","人儀"] },
+];
+
+var mult = [5,5,10,10,15,20,30,5,5,10];
+var fieldLabels = ['1對1\n×5','促成\n1對1\n×5','引薦\n×10','跨產業\n×10','成交\n×15','高品質\n×20','來賓\n×30','培訓\n+5','群組\n分享+5','鏡頭\n上台+10'];
+var fieldKeys = ['一對一','促成一對一','引薦','跨產業引薦','成交','高品質引薦','來賓成交','參加培訓','群組分享','開鏡頭上台'];
+
+// ══ localStorage helpers ══
+function loadStorage() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { return {}; }
+}
+function saveStorage(data) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+function getGroupStorage(gi) { return loadStorage()[gi] || {}; }
+function setGroupStorage(gi, data) {
+  var all = loadStorage(); all[gi] = data; saveStorage(all);
+}
+
+// ══ Toast ══
+var toastTimer = null;
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { t.className = 'toast'; }, 4000);
+}
+
+// ══ 分數計算 ══
+function calcRow(tr) {
+  if (tr.querySelector('.att').value === '代理人') return 0;
+  var nums = tr.querySelectorAll('.num');
+  var t = 0;
+  for (var i = 0; i < mult.length; i++) t += (parseInt(nums[i].value) || 0) * mult[i];
+  return t;
+}
+
+function updateScoreDisplay(gi, mi) {
+  var tr = document.getElementById('tr-' + gi + '-' + mi);
+  if (!tr) return;
+  var score = calcRow(tr);
+  var s = document.getElementById('s-' + gi + '-' + mi);
+  if (s) s.textContent = score;
+  var badge = document.getElementById('cs-' + gi + '-' + mi);
+  if (badge) badge.textContent = score + ' 分';
+  updateGroupTotal(gi);
+}
+
+function updateGroupTotal(gi) {
+  var tb = document.getElementById('tb-' + gi);
+  if (!tb) return;
+  var rows = Array.from(tb.querySelectorAll('tr')).filter(function(r) {
+    return !r.classList.contains('total-row');
+  });
+  var grandTotal = 0;
+  for (var c = 0; c < mult.length; c++) {
+    var colSum = 0;
+    rows.forEach(function(row) {
+      var nums = row.querySelectorAll('.num');
+      if (nums[c]) colSum += (parseInt(nums[c].value) || 0);
+    });
+    var gt = document.getElementById('gt-' + gi + '-' + c);
+    if (gt) gt.textContent = colSum;
+    var gtc = document.getElementById('gtc-' + gi + '-' + c);
+    if (gtc) gtc.textContent = colSum;
+    grandTotal += colSum * mult[c];
+  }
+  var gtTotal = document.getElementById('gt-' + gi + '-total');
+  if (gtTotal) gtTotal.textContent = grandTotal;
+  var gtcTotal = document.getElementById('gtc-' + gi + '-total');
+  if (gtcTotal) gtcTotal.textContent = grandTotal;
+}
+
+// ══ table ↔ card 同步 ══
+function syncCardToTable(gi, mi, fieldIdx, val) {
+  var tr = document.getElementById('tr-' + gi + '-' + mi);
+  if (!tr) return;
+  var nums = tr.querySelectorAll('.num');
+  if (nums[fieldIdx]) nums[fieldIdx].value = val;
+  updateScoreDisplay(gi, mi);
+}
+function syncCardAttToTable(gi, mi, val) {
+  var tr = document.getElementById('tr-' + gi + '-' + mi);
+  if (!tr) return;
+  var att = tr.querySelector('.att');
+  if (att) att.value = val;
+  updateScoreDisplay(gi, mi);
+}
+function syncTableToCards(gi) {
+  var g = groups[gi];
+  g.members.forEach(function(m, mi) {
+    var tr = document.getElementById('tr-' + gi + '-' + mi);
+    if (!tr) return;
+    var tableNums = tr.querySelectorAll('.num');
+    var tableAtt = tr.querySelector('.att');
+    var card = document.getElementById('card-' + gi + '-' + mi);
+    if (!card) return;
+    var cardNums = card.querySelectorAll('.num');
+    var cardAtt = card.querySelector('.att');
+    tableNums.forEach(function(n, i) { if (cardNums[i]) cardNums[i].value = n.value; });
+    if (cardAtt && tableAtt) cardAtt.value = tableAtt.value;
+    updateScoreDisplay(gi, mi);
+  });
+}
+
+// ══════════════════════════════════════════
+//  核心功能 1：填數字 → 自動加總
+//  （由 updateScoreDisplay + updateGroupTotal 處理）
+
+//  核心功能 2：按儲存 → 進試算表
+// ══════════════════════════════════════════
+function saveGroup(gi) {
+  var btn = document.getElementById('btn-' + gi);
+  btn.disabled = true;
+  btn.textContent = '⏳ 儲存中...';
+  showToast('⏳ 傳送資料中，請稍候...', 'info');
+
+  var g = groups[gi];
+  var tb = document.getElementById('tb-' + gi);
+  var rows = Array.from(tb.querySelectorAll('tr')).filter(function(r) {
+    return !r.classList.contains('total-row');
+  });
+
+  // 1. 先存 localStorage（斷線也不怕）
+  var storageData = {};
+  rows.forEach(function(tr, mi) {
+    var nums = tr.querySelectorAll('.num');
+    storageData[mi] = {
+      att: tr.querySelector('.att').value,
+      vals: Array.from(nums).map(function(n) { return parseInt(n.value) || 0; })
+    };
+    tr.classList.add('filled');
+    var card = document.getElementById('card-' + gi + '-' + mi);
+    if (card) card.classList.add('filled');
+  });
+  setGroupStorage(gi, storageData);
+
+  // 2. 組裝 payload
+  var payload = {
+    group: g.name,
+    rows: rows.map(function(tr, mi) {
+      var nums = tr.querySelectorAll('.num');
+      return {
+        name: g.members[mi],
+        att: tr.querySelector('.att').value,
+        f0: parseInt(nums[0].value)||0,
+        f1: parseInt(nums[1].value)||0,
+        f2: parseInt(nums[2].value)||0,
+        f3: parseInt(nums[3].value)||0,
+        f4: parseInt(nums[4].value)||0,
+        f5: parseInt(nums[5].value)||0,
+        f6: parseInt(nums[6].value)||0,
+        f7: parseInt(nums[7].value)||0,
+        f8: parseInt(nums[8].value)||0,
+        f9: parseInt(nums[9].value)||0,
+        total: calcRow(tr)
+      };
+    })
+  };
+
+  // 3. 先嘗試 fetch（cors 模式，能取到回應最好）
+  fetch(GAS_URL + '?action=save&data=' + encodeURIComponent(JSON.stringify(payload)), {
+    method: 'GET', mode: 'cors', cache: 'no-cache'
+  })
+  .then(function(res) {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  })
+  .then(function(json) {
+    if (json && json.status === 'ok') {
+      showToast('✅ 儲存成功！\n📸 請截圖此頁面發到小組長群', 'success');
+    } else {
+      throw new Error(json && json.message ? json.message : '未知錯誤');
+    }
+  })
+  .catch(function() {
+    // 4. fetch 被 CORS 擋住 → fallback：用隱藏 form POST（GAS 永遠接受 POST）
+    try {
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = GAS_URL;
+      form.target = 'hidden-iframe';
+      form.style.display = 'none';
+      var inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = 'data';
+      inp.value = JSON.stringify(payload);
+      form.appendChild(inp);
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+      showToast('✅ 已送出！\n📸 請截圖此頁面發到小組長群', 'success');
+    } catch(err) {
+      showToast('❌ 網路錯誤，請確認網路後再試', 'error');
+    }
+  })
+  .finally(function() {
+    btn.disabled = false;
+    btn.textContent = '✅ 儲存並截圖發組長群';
+  });
+}
+
+// ══════════════════════════════════════════
+//  核心功能 3：打開頁面 → 從試算表讀取顯示
+// ══════════════════════════════════════════
+function loadGroupData(gi) {
+  var g = groups[gi];
+  var st = document.getElementById('st-' + gi);
+
+  // 先從 localStorage 恢復（離線也有數字）
+  restoreFromStorage(gi);
+  syncTableToCards(gi);
+
+  // 再嘗試從 Google Sheets 拉最新資料覆蓋
+  fetch(GAS_URL + '?action=load&group=' + encodeURIComponent(g.name), {
+    method: 'GET', mode: 'cors', cache: 'no-cache'
+  })
+  .then(function(res) {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  })
+  .then(function(json) {
+    if (json && json.status === 'ok' && json.rows && json.rows.length > 0) {
+      var cnt = 0;
+      json.rows.forEach(function(row) {
+        var mi = -1;
+        for (var i = 0; i < g.members.length; i++) {
+          if (g.members[i] === row['姓名']) { mi = i; break; }
+        }
+        if (mi < 0) return;
+        var tr = document.getElementById('tr-' + gi + '-' + mi);
+        if (!tr) return;
+        var att = tr.querySelector('.att');
+        var nums = tr.querySelectorAll('.num');
+        if (att) att.value = row['出席狀況'] || '出席';
+        fieldKeys.forEach(function(f, i) { if (nums[i]) nums[i].value = row[f] || 0; });
+        tr.classList.add('filled');
+        var card = document.getElementById('card-' + gi + '-' + mi);
+        if (card) card.classList.add('filled');
+        cnt++;
+      });
+      syncTableToCards(gi);
+      updateGroupTotal(gi);
+      if (st) {
+        st.textContent = '✅ 已有 ' + cnt + ' 人填寫 / 共 ' + g.members.length + ' 人';
+        st.className = 'status-bar loaded';
+      }
+    } else {
+      if (st) {
+        st.textContent = '尚無人填寫，共 ' + g.members.length + ' 人';
+        st.className = 'status-bar';
+      }
+    }
+  })
+  .catch(function(err) {
+    console.warn('load from GAS failed:', err);
+    if (st) {
+      st.textContent = '⚠️ 後台讀取失敗，顯示本機暫存資料（仍可填寫儲存）';
+      st.className = 'status-bar warn';
+    }
+  });
+}
+
+function restoreFromStorage(gi) {
+  var stored = getGroupStorage(gi);
+  var g = groups[gi];
+  g.members.forEach(function(m, mi) {
+    if (!stored[mi]) return;
+    var d = stored[mi];
+    var tr = document.getElementById('tr-' + gi + '-' + mi);
+    if (!tr) return;
+    var att = tr.querySelector('.att');
+    var nums = tr.querySelectorAll('.num');
+    if (att && d.att) att.value = d.att;
+    (d.vals || []).forEach(function(v, i) { if (nums[i]) nums[i].value = v; });
+    updateScoreDisplay(gi, mi);
+    if (d.vals && d.vals.some(function(v) { return v > 0; })) {
+      tr.classList.add('filled');
+      var card = document.getElementById('card-' + gi + '-' + mi);
+      if (card) card.classList.add('filled');
+    }
+  });
+  updateGroupTotal(gi);
+}
+
+// ══ 建立 UI ══
+function buildGroup(g, gi) {
+  var div = document.createElement('div');
+  div.className = 'form-wrap';
+
+  // 手機版合計卡片欄位 HTML
+  var totalCardFieldsHTML = '';
+  fieldLabels.forEach(function(lbl, i) {
+    totalCardFieldsHTML += '<div class="total-card-field"><span>' + lbl.replace(/\n/g,'<br>') + '</span><strong id="gtc-' + gi + '-' + i + '">0</strong></div>';
+  });
+
+  div.innerHTML =
+    '<div class="top-bar">' +
+      '<h2>' + g.name + '｜週報</h2>' +
+      '<p>小組長：' + g.leader + '<br>' +
+      '📋 出席統計 & 競賽繳交：每週一晚上12:00前<br>' +
+      '⚠️ 出席如需修改，週二中午12:00前仍可更改，過後座位確定排下去<br>' +
+      '📅 本表每週五更新，於組長群發送，請跟上最新版本<br>' +
+      '🙏 填表分數請真誠面對自己，填好自己的欄位即可！</p>' +
+    '</div>' +
+    '<div class="body">' +
+      '<div class="status-bar" id="st-' + gi + '">🔄 讀取後台資料中...</div>' +
+      '<div class="table-wrap"><table>' +
+        '<thead><tr>' +
+          '<th class="nm">姓名</th><th class="att-h">出席</th>' +
+          '<th class="num-h">1對1<br>×5</th>' +
+          '<th class="num-h">促成<br>1對1<br>×5</th>' +
+          '<th class="num-h">引薦<br>×10</th>' +
+          '<th class="num-h">跨產業<br>×10</th>' +
+          '<th class="num-h">成交<br>×15</th>' +
+          '<th class="num-h">高品質<br>×20</th>' +
+          '<th class="num-h">來賓<br>×30</th>' +
+          '<th class="num-h">參加<br>培訓<br>+5</th>' +
+          '<th class="num-h">群組<br>分享<br>+5</th>' +
+          '<th class="num-h">開鏡頭<br>上台<br>+10</th>' +
+          '<th class="score-h">總分</th>' +
+        '</tr></thead>' +
+        '<tbody id="tb-' + gi + '"></tbody>' +
+      '</table></div>' +
+      '<div class="card-list" id="cl-' + gi + '"></div>' +
+      '<div class="total-card">' +
+        '<div class="total-card-title">📊 本週組合計</div>' +
+        '<div class="total-card-grid">' + totalCardFieldsHTML + '</div>' +
+        '<div class="total-card-grandtotal">總分：<span id="gtc-' + gi + '-total">0</span></div>' +
+      '</div>' +
+      '<div class="legend">' +
+        '<span class="tag">1對1 ×5</span>' +
+        '<span class="tag">引薦 ×10</span>' +
+        '<span class="tag">成交 ×15</span>' +
+        '<span class="tag">高品質引薦 ×20</span>' +
+        '<span class="tag bonus">促成1對1 ×5</span>' +
+        '<span class="tag bonus">跨產業引薦 ×10</span>' +
+        '<span class="tag bonus">來賓成交 ×30</span>' +
+        '<span class="tag">培訓+5／分享+5／上台+10</span>' +
+      '</div>' +
+      '<button class="submit-btn" id="btn-' + gi + '">✅ 儲存並截圖發組長群</button>' +
+    '</div>';
+
+  document.getElementById('root').appendChild(div);
+
+  // 綁按鈕（避免 inline onclick 在某些環境失效）
+  document.getElementById('btn-' + gi).addEventListener('click', (function(gIdx) {
+    return function() { saveGroup(gIdx); };
+  })(gi));
+
+  // ── 桌面版表格 rows ──
+  var tb = document.getElementById('tb-' + gi);
+  g.members.forEach(function(m, mi) {
+    var tr = document.createElement('tr');
+    tr.id = 'tr-' + gi + '-' + mi;
+
+    var cells = '<td class="nm">' + m + '</td>';
+    cells += '<td><select class="att"></select></td>';
+    for (var fi = 0; fi < mult.length; fi++) {
+      cells += '<td><input class="num" type="number" inputmode="numeric" min="0" value="0"></td>';
+    }
+    cells += '<td class="score" id="s-' + gi + '-' + mi + '">0</td>';
+    tr.innerHTML = cells;
+
+    // 綁事件（用 addEventListener，不用 inline）
+    var att = tr.querySelector('.att');
+    ['出席', '代理人'].forEach(function(v) {
+      var opt = document.createElement('option'); opt.value = v; opt.textContent = v;
+      att.appendChild(opt);
+    });
+    (function(gIdx, mIdx) {
+      att.addEventListener('change', function() { updateScoreDisplay(gIdx, mIdx); });
+      var nums = tr.querySelectorAll('.num');
+      nums.forEach(function(inp) {
+        inp.addEventListener('input', function() {
+          if (parseInt(this.value) < 0) this.value = '0';
+          updateScoreDisplay(gIdx, mIdx);
+        });
+      });
+    })(gi, mi);
+
+    tb.appendChild(tr);
+  });
+
+  // 合計列
+  var totalRow = document.createElement('tr');
+  totalRow.className = 'total-row';
+  var totalHtml = '<td class="nm" style="color:#4F46E5;font-size:14px;">本週組合計</td><td style="color:#888780;font-size:12px;">—</td>';
+  for (var ci = 0; ci < mult.length; ci++) {
+    totalHtml += '<td class="score" id="gt-' + gi + '-' + ci + '" style="font-size:13px;">0</td>';
+  }
+  totalHtml += '<td class="score" id="gt-' + gi + '-total" style="font-size:15px;">0</td>';
+  totalRow.innerHTML = totalHtml;
+  tb.appendChild(totalRow);
+
+  // ── 手機版卡片 ──
+  var cardList = document.getElementById('cl-' + gi);
+  g.members.forEach(function(m, mi) {
+    var card = document.createElement('div');
+    card.className = 'member-card';
+    card.id = 'card-' + gi + '-' + mi;
+
+    var fieldsHTML = '';
+    fieldLabels.forEach(function(lbl, i) {
+      fieldsHTML += '<div class="card-field"><label>' + lbl.replace(/\n/g,'<br>') + '</label>' +
+        '<input class="num" type="number" inputmode="numeric" min="0" value="0"></div>';
+    });
+
+    card.innerHTML =
+      '<div class="card-header">' +
+        '<span class="card-name">' + m + '</span>' +
+        '<select class="att"><option>出席</option><option>代理人</option></select>' +
+        '<span class="card-score-badge" id="cs-' + gi + '-' + mi + '">0 分</span>' +
+      '</div>' +
+      '<div class="card-body">' + fieldsHTML + '</div>';
+
+    // 綁卡片事件
+    (function(gIdx, mIdx) {
+      var cAtt = card.querySelector('.att');
+      cAtt.addEventListener('change', function() { syncCardAttToTable(gIdx, mIdx, this.value); });
+      var cNums = card.querySelectorAll('.num');
+      cNums.forEach(function(inp, fi) {
+        inp.addEventListener('input', function() {
+          if (parseInt(this.value) < 0) this.value = '0';
+          syncCardToTable(gIdx, mIdx, fi, this.value);
+        });
+      });
+    })(gi, mi);
+
+    cardList.appendChild(card);
+  });
+
+  // 載入資料（localStorage + Google Sheets）
+  loadGroupData(gi);
+}
+
+// 初始化
+groups.forEach(function(g, gi) { buildGroup(g, gi); });
+</script>
+</body>
+</html>
